@@ -19,28 +19,20 @@ mysql --version
 
 ## Database Setup (MySQL)
 
-1. Create a database and user (adjust names/passwords as desired):
+1. Create a database:
 
 ```sql
 CREATE DATABASE expense_tracker CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE USER 'expense_user'@'%' IDENTIFIED BY 'expense_pass';
-GRANT ALL PRIVILEGES ON expense_tracker.* TO 'expense_user'@'%';
-FLUSH PRIVILEGES;
 ```
 
 2. Configure application database settings.
 
-Update your `application.properties` / `application.yml` to point to MySQL:
+The default `application.yml` typically uses these credentials (change as needed):
 
 ```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/expense_tracker?useSSL=false&serverTimezone=UTC
-spring.datasource.username=expense_user
-spring.datasource.password=expense_pass
-
-# Typical Hibernate settings (adjust to your project conventions)
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=false
+spring.datasource.username=root
+spring.datasource.password=password
 ```
 
 > If your project uses Flyway/Liquibase, ensure migrations are enabled and run automatically on startup.
@@ -74,7 +66,6 @@ The API will typically be available at:
 ### Conventions
 
 - `Content-Type: application/json` for JSON requests
-- IDs are typically returned by create endpoints
 - Examples below assume base URL:
 
 ```bash
@@ -85,6 +76,12 @@ BASE_URL=http://localhost:8080
 
 ## Categories API
 
+### List Categories
+
+```bash
+curl -sS "$BASE_URL/api/categories"
+```
+
 ### Create Category
 
 ```bash
@@ -93,18 +90,6 @@ curl -sS -X POST "$BASE_URL/api/categories" \
   -d '{
     "name": "Food"
   }'
-```
-
-### List Categories
-
-```bash
-curl -sS "$BASE_URL/api/categories"
-```
-
-### Get Category by ID
-
-```bash
-curl -sS "$BASE_URL/api/categories/1"
 ```
 
 ### Update Category
@@ -123,11 +108,30 @@ curl -sS -X PUT "$BASE_URL/api/categories/1" \
 curl -sS -X DELETE "$BASE_URL/api/categories/1"
 ```
 
+### Merge Categories
+
+```bash
+curl -sS -X POST "$BASE_URL/api/categories/merge" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sourceCategoryId": 1,
+    "targetCategoryId": 2
+  }'
+```
+
 ---
 
-## Expenses API (CRUD)
+## Expenses API
+
+### List Expenses (filters via query params)
+
+```bash
+curl -sS "$BASE_URL/api/expenses?from=2026-07-01&to=2026-07-31&categoryId=1"
+```
 
 ### Create Expense
+
+Request fields: `amount`, `date`, `categoryId`, `note`
 
 ```bash
 curl -sS -X POST "$BASE_URL/api/expenses" \
@@ -135,21 +139,9 @@ curl -sS -X POST "$BASE_URL/api/expenses" \
   -d '{
     "amount": 12.50,
     "date": "2026-07-28",
-    "description": "Lunch",
-    "categoryId": 1
+    "categoryId": 1,
+    "note": "Lunch"
   }'
-```
-
-### List Expenses
-
-```bash
-curl -sS "$BASE_URL/api/expenses"
-```
-
-### Get Expense by ID
-
-```bash
-curl -sS "$BASE_URL/api/expenses/1"
 ```
 
 ### Update Expense
@@ -160,8 +152,8 @@ curl -sS -X PUT "$BASE_URL/api/expenses/1" \
   -d '{
     "amount": 15.00,
     "date": "2026-07-28",
-    "description": "Lunch + drink",
-    "categoryId": 1
+    "categoryId": 1,
+    "note": "Lunch + drink"
   }'
 ```
 
@@ -171,74 +163,34 @@ curl -sS -X PUT "$BASE_URL/api/expenses/1" \
 curl -sS -X DELETE "$BASE_URL/api/expenses/1"
 ```
 
----
-
-## Expense Filters
-
-> Common filters include date range, category, min/max amount, and text search. Adjust parameter names to your API implementation.
-
-### Filter by Date Range
+### Undo Expense Change
 
 ```bash
-curl -sS "$BASE_URL/api/expenses?from=2026-07-01&to=2026-07-31"
-```
-
-### Filter by Category
-
-```bash
-curl -sS "$BASE_URL/api/expenses?categoryId=1"
-```
-
-### Filter by Amount Range
-
-```bash
-curl -sS "$BASE_URL/api/expenses?minAmount=10&maxAmount=100"
-```
-
-### Filter by Description Search
-
-```bash
-curl -sS "$BASE_URL/api/expenses?query=lunch"
+curl -sS -X POST "$BASE_URL/api/expenses/1/undo"
 ```
 
 ---
 
-## Undo Last Operation
+## Reports
 
-> If supported, this endpoint reverts the most recent state-changing operation.
+### Monthly Total
 
 ```bash
-curl -sS -X POST "$BASE_URL/api/undo"
+curl -sS "$BASE_URL/api/expenses/monthly-total?year=2026&month=7"
 ```
 
----
-
-## Monthly Total
-
-> Returns total spent for a given month (e.g., `YYYY-MM`).
+### Monthly Insights by Category
 
 ```bash
-curl -sS "$BASE_URL/api/reports/monthly-total?month=2026-07"
-```
-
----
-
-## Insights
-
-> Provides analytics such as top categories, spending trends, averages, etc.
-
-```bash
-curl -sS "$BASE_URL/api/insights?from=2026-07-01&to=2026-07-31"
+curl -sS "$BASE_URL/api/insights/monthly-by-category?year=2026&month=7"
 ```
 
 ---
 
 ## Export CSV
 
-> Exports expenses to CSV. The response is typically `text/csv`.
-
 ```bash
-curl -sS -L "$BASE_URL/api/expenses/export.csv?from=2026-07-01&to=2026-07-31" \
+curl -sS -L "$BASE_URL/api/expenses/export?from=2026-07-01&to=2026-07-31" \
   -H "Accept: text/csv" \
   -o expenses.csv
 ```
@@ -247,8 +199,6 @@ curl -sS -L "$BASE_URL/api/expenses/export.csv?from=2026-07-01&to=2026-07-31" \
 
 ## Budgets
 
-> Budget endpoints commonly support setting a budget for a category and/or a month.
-
 ### Create/Set Budget
 
 ```bash
@@ -256,33 +206,16 @@ curl -sS -X POST "$BASE_URL/api/budgets" \
   -H "Content-Type: application/json" \
   -d '{
     "categoryId": 1,
-    "month": "2026-07",
+    "year": 2026,
+    "month": 7,
     "limit": 300.00
   }'
 ```
 
-### List Budgets
+### List Budgets (by month)
 
 ```bash
-curl -sS "$BASE_URL/api/budgets"
-```
-
-### Get Budget by ID
-
-```bash
-curl -sS "$BASE_URL/api/budgets/1"
-```
-
-### Update Budget
-
-```bash
-curl -sS -X PUT "$BASE_URL/api/budgets/1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "categoryId": 1,
-    "month": "2026-07",
-    "limit": 350.00
-  }'
+curl -sS "$BASE_URL/api/budgets?year=2026&month=7"
 ```
 
 ### Delete Budget
@@ -291,12 +224,10 @@ curl -sS -X PUT "$BASE_URL/api/budgets/1" \
 curl -sS -X DELETE "$BASE_URL/api/budgets/1"
 ```
 
-### Budget Status (Optional)
-
-> If available, returns current spend vs limit for a month/category.
+### Budget Status
 
 ```bash
-curl -sS "$BASE_URL/api/budgets/status?month=2026-07&categoryId=1"
+curl -sS "$BASE_URL/api/budgets/status?year=2026&month=7"
 ```
 
 ---
@@ -307,6 +238,5 @@ curl -sS "$BASE_URL/api/budgets/status?month=2026-07&categoryId=1"
   - MySQL is running and reachable
   - credentials match your configuration
   - DB schema exists (`expense_tracker`)
-- If using `ddl-auto=update`, tables will be created/updated on startup. In production, prefer migrations.
 
 ---
