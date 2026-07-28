@@ -1,5 +1,6 @@
 package com.ai.sdlc.expensetracker.expense.service;
 
+import com.ai.sdlc.expensetracker.alert.service.BudgetAlertService;
 import com.ai.sdlc.expensetracker.common.api.ResourceNotFoundException;
 import com.ai.sdlc.expensetracker.expense.api.dto.*;
 import com.ai.sdlc.expensetracker.expense.domain.Expense;
