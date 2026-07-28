@@ -1,0 +1,16 @@
+package com.example.expensetracker.api.dto;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+
+public record ExpenseResponse(
+    Long id,
+    BigDecimal amount,
+    LocalDate date,
+    String category,
+    String note,
+    Instant createdAt,
+    Instant updatedAt,
+    Long version
+) {}
