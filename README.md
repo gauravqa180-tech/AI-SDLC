@@ -32,7 +32,7 @@ The default `application.yml` typically uses these credentials (change as needed
 ```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/expense_tracker?useSSL=false&serverTimezone=UTC
 spring.datasource.username=root
-spring.datasource.password=password
+spring.datasource.password=root
 ```
 
 > If your project uses Flyway/Liquibase, ensure migrations are enabled and run automatically on startup.
@@ -111,12 +111,7 @@ curl -sS -X DELETE "$BASE_URL/api/categories/1"
 ### Merge Categories
 
 ```bash
-curl -sS -X POST "$BASE_URL/api/categories/merge" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sourceCategoryId": 1,
-    "targetCategoryId": 2
-  }'
+curl -sS -X POST "$BASE_URL/api/categories/merge?sourceCategoryId=1&targetCategoryId=2"
 ```
 
 ---
@@ -192,6 +187,7 @@ curl -sS "$BASE_URL/api/insights/monthly-by-category?year=2026&month=7"
 ```bash
 curl -sS -L "$BASE_URL/api/expenses/export?from=2026-07-01&to=2026-07-31" \
   -H "Accept: text/csv" \
+  -H "Content-Type: text/csv" \
   -o expenses.csv
 ```
 
@@ -205,10 +201,12 @@ curl -sS -L "$BASE_URL/api/expenses/export?from=2026-07-01&to=2026-07-31" \
 curl -sS -X POST "$BASE_URL/api/budgets" \
   -H "Content-Type: application/json" \
   -d '{
-    "categoryId": 1,
     "year": 2026,
     "month": 7,
-    "limit": 300.00
+    "categoryId": 1,
+    "amount": 300.00,
+    "warnThreshold": 0.80,
+    "exceedThreshold": 1.00
   }'
 ```
 
