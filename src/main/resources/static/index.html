@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Expense Tracker v1</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; max-width: 1100px; }
+    h1 { margin-bottom: 8px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; min-width: 320px; flex: 1; }
+    label { display: block; font-size: 12px; margin-top: 10px; }
+    input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; }
+    button { margin-top: 12px; padding: 8px 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
+    th { cursor: pointer; user-select: none; }
+    .muted { color: #666; font-size: 12px; }
+    .error { color: #b00020; white-space: pre-wrap; }
+    .alerts { margin-top: 8px; }
+    .alert { padding: 8px; border-radius: 6px; margin-bottom: 6px; }
+    .warn { background: #fff4e5; border: 1px solid #ffd59a; }
+    .bad { background: #fdecea; border: 1px solid #f5c2c7; }
+  </style>
+</head>
+<body>
+<h1>Expense Tracker v1</h1>
+<div class="muted">Simple UI for the REST API. Swagger: <a href="/swagger-ui" target="_blank">/swagger-ui</a></div>
+
+<div class="row">
+  <div class="card">
+    <h3 id="formTitle">Add Expense</h3>
+    <div id="formError" class="error"></div>
+    <label>Amount</label>
+    <input id="amount" type="number" step="0.01" min="0.01" />
+    <label>Date</label>
+    <input id="date" type="date" />
+    <label>Category</label>
+    <input id="category" placeholder="e.g. Food" />
+    <label>Note</label>
+    <textarea id="note" rows="2"></textarea>
+    <button id="saveBtn">Save</button>
+    <button id="cancelBtn" style="display:none;">Cancel</button>
+  </div>
+
+  <div class="card">
+    <h3>Filters</h3>
+    <label>From</label>
+    <input id="from" type="date" />
+    <label>To</label>
+    <input id="to" type="date" />
+    <label>Category</label>
+    <input id="filterCategory" placeholder="e.g. Food" />
+    <label>Search in note</label>
+    <input id="q" placeholder="keyword" />
+    <button id="applyFilters">Apply</button>
+    <button id="clearFilters">Clear</button>
+
+    <h3 style="margin-top:16px;">CSV</h3>
+    <button id="exportBtn">Export CSV</button>
+    <label>Import CSV</label>
+    <input id="csvFile" type="file" accept=".csv,text/csv" />
+    <button id="importBtn">Import</button>
+    <div id="importResult" class="muted"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h3>Expenses</h3>
+  <div class="muted">Click table headers to sort.</div>
+  <table>
+    <thead>
+      <tr>
+        <th data-sort="expenseDate">Date</th>
+        <th data-sort="amount">Amount</th>
+        <th>Category</th>
+        <th>Note</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+
+<div class="row" style="margin-top:16px;">
+  <div class="card">
+    <h3>Monthly Dashboard</h3>
+    <label>Month</label>
+    <input id="month" type="month" />
+    <button id="loadDashboard">Load</button>
+    <div id="dash" class="muted"></div>
+    <div id="alerts" class="alerts"></div>
+  </div>
+
+  <div class="card">
+    <h3>Budgets</h3>
+    <div id="budgetError" class="error"></div>
+    <label>Month</label>
+    <input id="budgetMonth" type="month" />
+    <label>Monthly budget (optional)</label>
+    <input id="monthlyBudget" type="number" step="0.01" min="0" />
+    <label>Category budgets (one per line: Category=Amount)</label>
+    <textarea id="categoryBudgets" rows="5" placeholder="Food=300\nRent=1200"></textarea>
+    <button id="saveBudget">Save Budget</button>
+  </div>
+</div>
+
+<script>
+  let editingId = null;
+  let sortField = 'expenseDate';
+  let sortDir = 'desc';
+
+  const $ = (id) => document.getElementById(id);
+
+  function todayStr() {
+    const d = new Date();
+    return d.toISOString().slice(0,10);
+  }
+
+  function ymStr(d = new Date()) {
+    return d.toISOString().slice(0,7);
+  }
+
+  async function api(url, options = {}) {
+    const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+    const text = await res.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch (e) { body = text; }
+    if (!res.ok) throw body;
+    return body;
+  }
+
+  function setFormModeEdit(exp) {
+    editingId = exp.id;
+    $('formTitle').innerText = 'Edit Expense #' + exp.id;
+    $('saveBtn').innerText = 'Update';
+    $('cancelBtn').style.display = '';
+    $('amount').value = exp.amount;
+    $('date').value = exp.date;
+    $('category').value = exp.category;
+    $('note').value = exp.note || '';
+  }
+
+  function resetForm() {
+    editingId = null;
+    $('formTitle').innerText = 'Add Expense';
+    $('saveBtn').innerText = 'Save';
+    $('cancelBtn').style.display = 'none';
+    $('formError').innerText = '';
+    $('amount').value = '';
+    $('date').value = todayStr();
+    $('category').value = '';
+    $('note').value = '';
+  }
+
+  function currentFilters() {
+    const params = new URLSearchParams();
+    if ($('from').value) params.set('from', $('from').value);
+    if ($('to').value) params.set('to', $('to').value);
+    if ($('filterCategory').value) params.set('category', $('filterCategory').value);
+    if ($('q').value) params.set('q', $('q').value);
+    params.set('page', '0');
+    params.set('size', '200');
+    params.set('sort', sortField);
+    params.set('dir', sortDir);
+    return params;
+  }
+
+  async function loadExpenses() {
+    const params = currentFilters();
+    const data = await api('/api/expenses?' + params.toString());
+    const tbody = $('rows');
+    tbody.innerHTML = '';
+    for (const e of data.content) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${e.date}</td>
+        <td>${e.amount}</td>
+        <td>${e.category}</td>
+        <td>${e.note || ''}</td>
+        <td>
+          <button data-edit="${e.id}">Edit</button>
+          <button data-del="${e.id}">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    tbody.querySelectorAll('button[data-edit]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-edit');
+        const exp = await api('/api/expenses/' + id);
+        setFormModeEdit(exp);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    tbody.querySelectorAll('button[data-del]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-del');
+        if (!confirm('Delete expense #' + id + '?')) return;
+        await fetch('/api/expenses/' + id, { method: 'DELETE' });
+        await loadExpenses();
+      });
+    });
+  }
+
+  function formatApiError(err) {
+    if (!err) return 'Unknown error';
+    if (typeof err === 'string') return err;
+    if (err.message && err.violations) {
+      return err.message + "\n" + err.violations.map(v => `${v.field}: ${v.message}`).join('\n');
+    }
+    if (err.message) return err.message;
+    return JSON.stringify(err, null, 2);
+  }
+
+  $('saveBtn').addEventListener('click', async () => {
+    $('formError').innerText = '';
+    const payload = {
+      amount: $('amount').value ? Number($('amount').value) : null,
+      date: $('date').value || null,
+      category: $('category').value,
+      note: $('note').value
+    };
+    // client-side quick validation
+    if (!payload.amount || payload.amount <= 0) { $('formError').innerText = 'amount must be > 0'; return; }
+    if (!payload.date) { $('formError').innerText = 'date is required'; return; }
+    if (!payload.category || !payload.category.trim()) { $('formError').innerText = 'category is required'; return; }
+
+    try {
+      if (editingId) {
+        await api('/api/expenses/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+      } else {
+        await api('/api/expenses', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      resetForm();
+      await loadExpenses();
+    } catch (e) {
+      $('formError').innerText = formatApiError(e);
+    }
+  });
+
+  $('cancelBtn').addEventListener('click', () => resetForm());
+
+  $('applyFilters').addEventListener('click', () => loadExpenses());
+  $('clearFilters').addEventListener('click', () => {
+    $('from').value = '';
+    $('to').value = '';
+    $('filterCategory').value = '';
+    $('q').value = '';
+    loadExpenses();
+  });
+
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const f = th.getAttribute('data-sort');
+      if (sortField === f) sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
+      else { sortField = f; sortDir = 'desc'; }
+      loadExpenses();
+    });
+  });
+
+  $('exportBtn').addEventListener('click', () => {
+    const p = currentFilters();
+    p.delete('page'); p.delete('size'); p.delete('sort'); p.delete('dir');
+    window.location.href = '/api/expenses/export?' + p.toString();
+  });
+
+  $('importBtn').addEventListener('click', async () => {
+    $('importResult').innerText = '';
+    const f = $('csvFile').files[0];
+    if (!f) { $('importResult').innerText = 'Choose a CSV file first.'; return; }
+    const form = new FormData();
+    form.append('file', f);
+    const res = await fetch('/api/expenses/import', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) {
+      $('importResult').innerText = formatApiError(data);
+      return;
+    }
+    $('importResult').innerText = `Imported ${data.importedRows}/${data.totalRows}. Failed: ${data.failedRows}` + (data.errors?.length ? "\n" + data.errors.map(e => `Row ${e.rowNumber}: ${e.message}`).join('\n') : "");
+    await loadExpenses();
+  });
+
+  $('loadDashboard').addEventListener('click', async () => {
+    $('dash').innerText = '';
+    $('alerts').innerHTML = '';
+    const month = $('month').value;
+    if (!month) return;
+    const data = await api('/api/insights/monthly?month=' + month);
+    const lines = [];
+    lines.push('Monthly total: ' + data.monthlyTotal);
+    lines.push('By category:');
+    for (const ct of data.totalsByCategory) {
+      lines.push(' - ' + ct.category + ': ' + ct.total);
+    }
+    if (data.budget && (data.budget.monthlyBudget || (data.budget.categoryBudgets && data.budget.categoryBudgets.length))) {
+      lines.push('');
+      lines.push('Budgets:');
+      if (data.budget.monthlyBudget) {
+        lines.push(` - Monthly budget: ${data.budget.monthlyBudget} (used ${data.budget.monthlyPercentUsed || 0}%) remaining ${data.budget.monthlyRemaining}`);
+      }
+      for (const b of data.budget.categoryBudgets || []) {
+        lines.push(` - ${b.category}: budget ${b.budget}, spent ${b.spent}, used ${b.percentUsed || 0}%`);
+      }
+    }
+    $('dash').innerText = lines.join('\n');
+
+    for (const a of (data.budget?.alerts || [])) {
+      const div = document.createElement('div');
+      div.className = 'alert ' + (a.level === 'EXCEEDED' ? 'bad' : 'warn');
+      div.innerText = a.message;
+      $('alerts').appendChild(div);
+    }
+  });
+
+  $('saveBudget').addEventListener('click', async () => {
+    $('budgetError').innerText = '';
+    const month = $('budgetMonth').value;
+    if (!month) { $('budgetError').innerText = 'Month is required'; return; }
+
+    const monthlyBudget = $('monthlyBudget').value ? Number($('monthlyBudget').value) : null;
+    const lines = ($('categoryBudgets').value || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const categoryBudgets = [];
+    for (const l of lines) {
+      const parts = l.split('=');
+      if (parts.length !== 2) { $('budgetError').innerText = 'Invalid category budget line: ' + l; return; }
+      const cat = parts[0].trim();
+      const amt = Number(parts[1].trim());
+      if (!cat) { $('budgetError').innerText = 'Empty category in: ' + l; return; }
+      if (!amt || amt <= 0) { $('budgetError').innerText = 'Invalid amount in: ' + l; return; }
+      categoryBudgets.push({ category: cat, budgetAmount: amt });
+    }
+
+    try {
+      await api('/api/budgets', {
+        method: 'PUT',
+        body: JSON.stringify({ month, monthlyBudget, categoryBudgets })
+      });
+      $('budgetError').innerText = 'Saved.';
+    } catch (e) {
+      $('budgetError').innerText = formatApiError(e);
+    }
+  });
+
+  // init
+  $('date').value = todayStr();
+  $('month').value = ymStr();
+  $('budgetMonth').value = ymStr();
+  resetForm();
+  loadExpenses();
+</script>
+</body>
+</html>
