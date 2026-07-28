@@ -19,6 +19,7 @@ import java.util.List;
 public class ExpenseService {
 
     private final ExpenseRepository expenseRepository;
+    private final BudgetAlertService budgetAlertService;
 
     @Transactional
     public ExpenseResponse create(ExpenseCreateRequest req) {
@@ -28,6 +29,9 @@ public class ExpenseService {
         e.setCategory(req.category().trim());
         e.setNote(req.note());
         Expense saved = expenseRepository.save(e);
+
+        budgetAlertService.evaluateThresholds(YearMonth.from(saved.getDate()), saved.getCategory());
+
         return toResponse(saved);
     }
 
@@ -39,6 +43,9 @@ public class ExpenseService {
         e.setDate(req.date());
         e.setCategory(req.category().trim());
         e.setNote(req.note());
+
+        budgetAlertService.evaluateThresholds(YearMonth.from(e.getDate()), e.getCategory());
+
         return toResponse(e);
     }
 
