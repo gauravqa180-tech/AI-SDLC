@@ -26,7 +26,7 @@ public class UndoTokenService {
     }
 
     // for tests
-    UndoTokenService(Clock clock) {
+    public UndoTokenService(Clock clock) {
         this.clock = clock;
     }
 
