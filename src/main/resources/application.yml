@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: expense-tracker
+  sql:
+    init:
+      mode: always
   datasource:
     url: jdbc:mysql://localhost:3306/expense_tracker?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: root
@@ -15,6 +18,10 @@ spring:
       hibernate:
         format_sql: true
     open-in-view: false
+
+app:
+  expenses:
+    undoWindowSeconds: 10
 
 logging:
   level:
