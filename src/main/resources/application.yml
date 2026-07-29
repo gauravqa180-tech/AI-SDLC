@@ -21,3 +21,8 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui
+
+app:
+  budgets:
+    threshold80: 0.8
+    threshold100: 1.0
