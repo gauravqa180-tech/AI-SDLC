@@ -1,5 +1,7 @@
 package com.example.expensetracker.expense.service;
 
+import com.example.expensetracker.budget.api.dto.BudgetAlertResponse;
+import com.example.expensetracker.budget.service.BudgetService;
 import com.example.expensetracker.expense.api.dto.ExpenseCreateRequest;
 import com.example.expensetracker.expense.api.dto.ExpenseResponse;
 import com.example.expensetracker.expense.api.dto.ExpenseUpdateRequest;
@@ -7,6 +9,7 @@ import com.example.expensetracker.expense.domain.Expense;
 import com.example.expensetracker.expense.repo.ExpenseRepository;
 import com.example.expensetracker.expense.repo.ExpenseSpecifications;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -17,15 +20,18 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 
 @Service
 public class ExpenseService {
 
     private final ExpenseRepository expenseRepository;
+    private final BudgetService budgetService;
     private final Clock clock;
 
-    public ExpenseService(ExpenseRepository expenseRepository) {
+    public ExpenseService(ExpenseRepository expenseRepository, @Lazy BudgetService budgetService) {
         this.expenseRepository = expenseRepository;
+        this.budgetService = budgetService;
         this.clock = Clock.systemUTC();
     }
 
@@ -38,6 +44,33 @@ public class ExpenseService {
         e.setNote(req.note());
         Expense saved = expenseRepository.save(e);
         return toResponse(saved);
+    }
+
+    @Transactional
+    public ExpenseResponse update(Long id, ExpenseUpdateRequest req) {
+        Expense e = expenseRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new EntityNotFoundException("Expense not found: " + id));
+
+        e.setAmount(req.amount());
+        e.setDate(req.date());
+        e.setCategory(req.category().trim());
+        e.setNote(req.note());
+
+        return toResponse(expenseRepository.save(e));
+    }
+
+    @Transactional
+    public ExpenseWithAlertResponse createWithAlert(ExpenseCreateRequest req) {
+        ExpenseResponse expense = create(req);
+        Optional<BudgetAlertResponse> alert = Optional.ofNullable(budgetService.evaluateAlert());
+        return new ExpenseWithAlertResponse(expense, alert);
+    }
+
+    @Transactional
+    public ExpenseWithAlertResponse updateWithAlert(Long id, ExpenseUpdateRequest req) {
+        ExpenseResponse expense = update(id, req);
+        Optional<BudgetAlertResponse> alert = Optional.ofNullable(budgetService.evaluateAlert());
+        return new ExpenseWithAlertResponse(expense, alert);
     }
 
     @Transactional(readOnly = true)
@@ -64,19 +97,6 @@ public class ExpenseService {
         Expense e = expenseRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new EntityNotFoundException("Expense not found: " + id));
         return toResponse(e);
-    }
-
-    @Transactional
-    public ExpenseResponse update(Long id, ExpenseUpdateRequest req) {
-        Expense e = expenseRepository.findByIdAndDeletedFalse(id)
-                .orElseThrow(() -> new EntityNotFoundException("Expense not found: " + id));
-
-        e.setAmount(req.amount());
-        e.setDate(req.date());
-        e.setCategory(req.category().trim());
-        e.setNote(req.note());
-
-        return toResponse(expenseRepository.save(e));
     }
 
     @Transactional
@@ -111,5 +131,14 @@ public class ExpenseService {
                 e.getCreatedAt(),
                 e.getUpdatedAt()
         );
+    }
+
+    public record ExpenseWithAlertResponse(ExpenseResponse expense, Optional<BudgetAlertResponse> alert) {
+        public ExpenseWithAlertResponse {
+            if (expense == null) {
+                throw new IllegalArgumentException("expense must not be null");
+            }
+            alert = alert == null ? Optional.empty() : alert;
+        }
     }
 }
