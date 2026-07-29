@@ -98,6 +98,14 @@ public class Expense {
         return deletedAt;
     }
 
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
     public void softDelete(Instant when) {
         this.deleted = true;
         this.deletedAt = when;
