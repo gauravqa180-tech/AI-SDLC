@@ -62,12 +62,7 @@ public class BudgetService {
         if (category == null) {
             spent = expenseRepository.totalForRange(from, to);
         } else {
-            // reuse search aggregation quickly using query: total for range + category
-            spent = expenseRepository.search(from, to, category, null,
-                            org.springframework.data.domain.PageRequest.of(0, 1))
-                    .stream()
-                    .map(com.example.expensetracker.expense.domain.Expense::getAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            spent = expenseRepository.sumByCategoryAndRange(from, to, category);
         }
 
         BigDecimal remaining = budget.getAmount().subtract(spent);
