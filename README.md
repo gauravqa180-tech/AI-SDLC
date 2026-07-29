@@ -18,7 +18,7 @@ GRANT ALL PRIVILEGES ON expense_tracker.* TO 'expense_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-Configure your app (e.g., `src/main/resources/application.yml` or `application.properties`) with:
+Configure your app datasource in `src/main/resources/application.yml` (or change the example below to match your current defaults):
 - URL: `jdbc:mysql://localhost:3306/expense_tracker`
 - Username: `expense_user`
 - Password: `expense_pass`
@@ -37,26 +37,23 @@ Default base URL:
 
 ## API usage (curl)
 
-> Replace URLs/fields to match your actual DTOs if they differ.
-
 ### Create expense
+`ExpenseCreateRequest` fields: `amount`, `date`, `category`, `note`
 ```bash
 curl -X POST "http://localhost:8080/api/expenses" \
   -H "Content-Type: application/json" \
   -d '{
-    "date":"2026-07-29",
-    "amount":24.50,
-    "currency":"USD",
-    "category":"FOOD",
-    "merchant":"Cafe",
-    "description":"Lunch"
+    "amount": 24.50,
+    "date": "2026-07-29",
+    "category": "FOOD",
+    "note": "Lunch"
   }'
 ```
 
 ### List expenses (filters + sort + search)
-Example: filter by date range + category, search text, sort newest first, paginate.
+Query params: `from`, `to`, `category`, `q`, `page`, `size`, `sortBy`, `direction`
 ```bash
-curl "http://localhost:8080/api/expenses?from=2026-07-01&to=2026-07-31&category=FOOD&search=lunch&sort=date,desc&page=0&size=20"
+curl "http://localhost:8080/api/expenses?from=2026-07-01&to=2026-07-31&category=FOOD&q=lunch&sortBy=date&direction=desc&page=0&size=20"
 ```
 
 ### Update expense
@@ -64,12 +61,10 @@ curl "http://localhost:8080/api/expenses?from=2026-07-01&to=2026-07-31&category=
 curl -X PUT "http://localhost:8080/api/expenses/1" \
   -H "Content-Type: application/json" \
   -d '{
-    "date":"2026-07-29",
-    "amount":26.00,
-    "currency":"USD",
-    "category":"FOOD",
-    "merchant":"Cafe",
-    "description":"Lunch + drink"
+    "amount": 26.00,
+    "date": "2026-07-29",
+    "category": "FOOD",
+    "note": "Lunch + drink"
   }'
 ```
 
@@ -80,33 +75,33 @@ curl -X DELETE "http://localhost:8080/api/expenses/1"
 
 ### Monthly total
 ```bash
-curl "http://localhost:8080/api/analytics/monthly-total?year=2026&month=7"
+curl "http://localhost:8080/api/expenses/monthly-total?month=2026-07"
 ```
 
-### Report (summary by category, etc.)
+### Report
 ```bash
-curl "http://localhost:8080/api/reports?from=2026-07-01&to=2026-07-31&groupBy=category"
+curl "http://localhost:8080/api/expenses/report?from=2026-07-01&to=2026-07-31"
 ```
 
 ### Export CSV
 ```bash
-curl -L "http://localhost:8080/api/exports/expenses.csv?from=2026-07-01&to=2026-07-31" \
+curl -L "http://localhost:8080/api/expenses/export?from=2026-07-01&to=2026-07-31" \
   -o expenses-2026-07.csv
 ```
 
-### Create budget
+### Upsert budget
 ```bash
 curl -X POST "http://localhost:8080/api/budgets" \
   -H "Content-Type: application/json" \
   -d '{
-    "month":"2026-07",
-    "category":"FOOD",
-    "limit":300.00,
-    "currency":"USD"
+    "month": "2026-07",
+    "category": "FOOD",
+    "amount": 300.00
   }'
 ```
 
 ### Budget progress
+`category` is optional.
 ```bash
-curl "http://localhost:8080/api/budgets/progress?month=2026-07"
+curl "http://localhost:8080/api/budgets/progress?month=2026-07&category=FOOD"
 ```
