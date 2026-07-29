@@ -44,6 +44,18 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             """)
     java.math.BigDecimal totalForRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    @Query("""
+            select coalesce(sum(e.amount), 0)
+            from Expense e
+            where e.expenseDate >= :from and e.expenseDate <= :to
+              and e.category = :category
+            """)
+    java.math.BigDecimal sumByCategoryAndRange(
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("category") String category
+    );
+
     interface CategoryTotalRow {
         String getCategory();
 
