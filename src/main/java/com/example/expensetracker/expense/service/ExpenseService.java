@@ -108,8 +108,8 @@ public class ExpenseService {
                 e.getCategory(),
                 e.getNote(),
                 e.isDeleted(),
-                null,
-                null
+                e.getCreatedAt(),
+                e.getUpdatedAt()
         );
     }
 }
