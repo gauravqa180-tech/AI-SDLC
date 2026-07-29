@@ -3,6 +3,7 @@ package com.example.expensetracker.expense.api;
 import com.example.expensetracker.expense.api.dto.ExpenseCreateRequest;
 import com.example.expensetracker.expense.api.dto.ExpenseResponse;
 import com.example.expensetracker.expense.api.dto.ExpenseUpdateRequest;
+import com.example.expensetracker.expense.api.dto.ExpenseWithAlertResponse;
 import com.example.expensetracker.expense.api.dto.MonthlyTotalResponse;
 import com.example.expensetracker.expense.service.ExpenseService;
 import jakarta.validation.Valid;
@@ -27,10 +28,10 @@ public class ExpenseController {
         this.expenseService = expenseService;
     }
 
-    // US1 + base CRUD: create
+    // US1 + base CRUD: create (with alert)
     @PostMapping
-    public ExpenseResponse create(@Valid @RequestBody ExpenseCreateRequest request) {
-        return expenseService.create(request);
+    public ExpenseWithAlertResponse create(@Valid @RequestBody ExpenseCreateRequest request) {
+        return expenseService.createWithAlert(request);
     }
 
     // US3: list/search/filter/sort
@@ -57,10 +58,10 @@ public class ExpenseController {
         return expenseService.get(id);
     }
 
-    // US1: edit/update
+    // US1: edit/update (with alert)
     @PutMapping("/{id}")
-    public ExpenseResponse update(@PathVariable Long id, @Valid @RequestBody ExpenseUpdateRequest request) {
-        return expenseService.update(id, request);
+    public ExpenseWithAlertResponse update(@PathVariable Long id, @Valid @RequestBody ExpenseUpdateRequest request) {
+        return expenseService.updateWithAlert(id, request);
     }
 
     // US2: soft delete
