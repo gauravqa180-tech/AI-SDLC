@@ -14,6 +14,8 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.util.Objects.requireNonNullElse;
+
 @Service
 @RequiredArgsConstructor
 public class BudgetService {
@@ -43,12 +45,11 @@ public class BudgetService {
         List<BudgetStatusResponse> out = new ArrayList<>(budgets.size());
 
         for (MonthlyBudget b : budgets) {
-            // spent for category within month
-            BigDecimal spent = expenseRepository.search(r.start(), r.end(), b.getCategory(), null,
-                            org.springframework.data.domain.Sort.unsorted())
-                    .stream()
-                    .map(e -> e.getAmount() == null ? BigDecimal.ZERO : e.getAmount())
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            // spent for category within month (avoid loading expenses list)
+            BigDecimal spent = requireNonNullElse(
+                    expenseRepository.sumAmountByCategoryBetweenDates(r.start(), r.end(), b.getCategory()),
+                    BigDecimal.ZERO
+            );
 
             BigDecimal remaining = b.getAmount().subtract(spent);
             out.add(new BudgetStatusResponse(month, b.getCategory(), b.getAmount(), spent, remaining));
