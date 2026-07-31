@@ -26,17 +26,21 @@ FLUSH PRIVILEGES;
 
 3. Configure Spring datasource
 
-Set the following in `src/main/resources/application.properties` (or `application.yml`):
+Set the following in `src/main/resources/application.yml`:
 
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/expense_tracker?useSSL=false&serverTimezone=UTC
-spring.datasource.username=expense_user
-spring.datasource.password=expense_password
-
-# Typical Hibernate settings (adjust if your project differs)
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=false
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/expense_tracker?useSSL=false&serverTimezone=UTC
+    username: root
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
 ```
 
 ## Run the app (Java 17)
@@ -58,7 +62,7 @@ The app will start on the configured port (commonly `http://localhost:8080`).
 
 ## Swagger / OpenAPI
 
-- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
 ## API Endpoints
@@ -70,9 +74,6 @@ The app will start on the configured port (commonly `http://localhost:8080`).
 - **Create expense**
   - `POST /api/expenses`
 
-- **Get expense by id**
-  - `GET /api/expenses/{id}`
-
 - **Update/edit expense**
   - `PUT /api/expenses/{id}` (or `PATCH /api/expenses/{id}` depending on implementation)
 
@@ -82,20 +83,19 @@ The app will start on the configured port (commonly `http://localhost:8080`).
 - **Undo soft delete**
   - `POST /api/expenses/{id}/undo-delete` (restores a soft-deleted expense)
 
-- **List expenses (month/search/filters/sort)**
+- **List expenses (filters/sort)**
   - `GET /api/expenses`
   - Supported query params (as implemented):
-    - `month` (e.g. `2026-07` or numeric month) — filter by month
-    - `search` — free-text search (e.g., description/notes)
-    - Additional filters (commonly):
-      - `categoryId`
-      - `minAmount`
-      - `maxAmount`
-      - `fromDate`
-      - `toDate`
-      - `includeDeleted` (true/false)
-    - Sorting (commonly):
-      - `sort` (e.g. `date,desc` or `amount,asc`)
+    - Date filtering:
+      - `month` (e.g. `2026-07`) **OR**
+      - `start` and `end` (e.g. `2026-07-01` and `2026-07-31`)
+    - `q` — free-text search
+    - `categoryId`
+    - `minAmount`
+    - `maxAmount`
+    - Sorting:
+      - `sortBy`
+      - `sortDir`
 
 - **Monthly total**
   - `GET /api/expenses/monthly-total`
@@ -117,7 +117,9 @@ The app will start on the configured port (commonly `http://localhost:8080`).
   - `PUT /api/categories/{id}`
 
 - **Delete category (with reassignment)**
-  - `DELETE /api/categories/{id}?reassignToCategoryId={targetCategoryId}`
+  - `DELETE /api/categories/{id}`
+  - Request body:
+    - `reassignToCategoryId` (target category id)
   - Deletes the category and reassigns existing expenses to the target category.
 
 ## Notes
