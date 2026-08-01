@@ -33,20 +33,27 @@ You can adjust names/passwords to your environment.
 
 ### 2) Configure Spring Boot datasource
 
-Update your application configuration (typically `src/main/resources/application.properties` or `application.yml`) with your MySQL connection info.
+Update your application configuration (typically `src/main/resources/application.yml`) with your MySQL connection info.
 
-Example `application.properties`:
+Example `application.yml`:
 
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/expense_tracker?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-spring.datasource.username=expense_user
-spring.datasource.password=expense_pass
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/expense_tracker?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: expense_user
+    password: expense_pass
 
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=false
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
 
-server.port=8080
+server:
+  port: 8080
 ```
 
 Notes:
@@ -78,15 +85,15 @@ API will be available at:
 
 ## Swagger / OpenAPI
 
+Swagger/OpenAPI paths are configured in `application.yml`.
+
 Interactive Swagger UI is available at:
 
-- `http://localhost:8080/swagger-ui/index.html`
+- `http://localhost:8080/swagger-ui`
 
-OpenAPI JSON is typically available at:
+OpenAPI JSON is available at:
 
-- `http://localhost:8080/v3/api-docs`
-
-(Exact paths may vary if the project customizes springdoc settings.)
+- `http://localhost:8080/api-docs`
 
 ---
 
@@ -96,16 +103,15 @@ All endpoints below assume the base path:
 
 - `/api/expenses`
 
-### Expense Fields (typical)
+### Expense Fields
 
-The exact schema may vary slightly depending on implementation, but expenses generally include:
+Expenses include:
 
 - `id` (number) — server-generated
-- `title` (string) — short description/name
 - `amount` (number) — must be positive
 - `category` (string) — e.g., `FOOD`, `TRANSPORT`, etc.
 - `date` (string) — ISO-8601 date (e.g., `2026-08-01`)
-- `notes` (string, optional)
+- `note` (string, optional)
 
 ---
 
@@ -117,11 +123,10 @@ Request body example:
 
 ```json
 {
-  "title": "Lunch",
   "amount": 12.50,
   "category": "FOOD",
   "date": "2026-08-01",
-  "notes": "Team lunch"
+  "note": "Team lunch"
 }
 ```
 
@@ -135,12 +140,17 @@ Responses:
 
 **GET** `/api/expenses`
 
-Returns a list of expenses.
+Returns a paginated list of expenses using Spring Data `Pageable`.
+
+Query parameters:
+- `page` (0-based) — page index (e.g., `?page=0`)
+- `size` — page size (e.g., `?size=20`)
+- `sort` — sorting criteria (repeatable), e.g. `?sort=date,desc` or `?sort=amount,asc`
 
 Responses:
-- `200 OK` with an array of expenses
+- `200 OK` with a page of expenses
 
-(Optional query parameters may exist in your implementation, such as pagination or date ranges. See Swagger UI for the authoritative list.)
+(See Swagger UI for the authoritative list and response schema.)
 
 ---
 
@@ -162,11 +172,10 @@ Request body example:
 
 ```json
 {
-  "title": "Lunch (updated)",
   "amount": 13.00,
   "category": "FOOD",
   "date": "2026-08-01",
-  "notes": "Updated note"
+  "note": "Updated note"
 }
 ```
 
@@ -194,10 +203,10 @@ When request validation fails (e.g., missing required fields, invalid formats), 
 - `400 Bad Request`
 
 Typical validation rules include:
-- `title`: required, non-blank
 - `amount`: required, must be greater than 0
 - `date`: required, must be a valid ISO date
 - `category`: required, must be one of the supported values (if an enum is used)
+- `note`: optional (may be limited in length depending on implementation)
 
 The error response body format may vary by implementation (for example, a message plus a list/map of field errors). Refer to Swagger UI and actual responses to confirm the exact error schema.
 
