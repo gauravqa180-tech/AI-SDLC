@@ -1,104 +1,99 @@
-# AI-SDLC
+# Expense Tracker v1 (Spring Boot + MySQL)
 
-## Project Overview
+Expense Tracker v1 is a Spring Boot backend service for managing expenses. It exposes REST APIs for creating, listing, updating, and deleting expenses, backed by a MySQL database.
 
-AI-SDLC is a backend service for managing expenses. It exposes REST APIs for creating, listing, and editing expenses, backed by a MySQL database. The project includes automated tests that can run against ephemeral MySQL instances using Testcontainers.
+## Implemented User Story #1: Edit Expense
 
-Key features:
-- RESTful API for expense management
-- MySQL persistence
-- Integration tests powered by Testcontainers (no local DB required for tests)
+You can edit an existing expense by ID using:
+
+- `PUT /api/expenses/{id}`
+
+The request body contains updated fields (e.g., amount, description, date). The API returns the updated expense.
 
 ---
 
 ## Prerequisites
 
-- Java 17+ (or the Java version configured by the project)
-- Maven 3.8+ (or the build tool used by the project)
-- Docker (required for Testcontainers tests)
-- MySQL 8+ (required to run the application locally with MySQL)
+- Java 17
+- Maven
+- Docker (optional; required only if you want to run tests with Testcontainers)
 
 ---
 
-## How to Run (with MySQL)
+## Local MySQL Setup
 
-### 1) Start MySQL
+### Option A: Run MySQL with Docker
 
-You can use an existing MySQL instance or start one locally. Example using Docker:
+docker run --name expense-tracker-mysql \
+  -e MYSQL_ROOT_PASSWORD=root \
+  -e MYSQL_DATABASE=expense_tracker \
+  -e MYSQL_USER=expense_user \
+  -e MYSQL_PASSWORD=expense_password \
+  -p 3306:3306 \
+  -d mysql:8
 
-- Start MySQL:
-  - Image: `mysql:8`
-  - Port: `3306`
-  - Create a database (example): `ai_sdlc`
-  - Create a user/password (example): `ai_user` / `ai_password`
+### Environment Variables
 
-Example (illustrative) Docker command:
+Export environment variables for the application to connect to MySQL:
 
-- `docker run --name ai-sdlc-mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=ai_sdlc -e MYSQL_USER=ai_user -e MYSQL_PASSWORD=ai_password -p 3306:3306 -d mysql:8`
+export DB_URL=jdbc:mysql://localhost:3306/expense_tracker
+export DB_USERNAME=expense_user
+export DB_PASSWORD=expense_password
 
-### 2) Configure Application
+If your application uses Spring Boot standard variables instead, you can also use:
 
-Set your application’s DB connection properties to point to MySQL. Typical properties include:
-
-- JDBC URL (example): `jdbc:mysql://localhost:3306/ai_sdlc`
-- Username (example): `ai_user`
-- Password (example): `ai_password`
-
-Depending on the framework, these are commonly configured via:
-- `application.properties` / `application.yml`
-- Environment variables (e.g., `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`)
-
-### 3) Build and Run
-
-Using Maven (common setup):
-
-- Build:
-  - `mvn clean package`
-- Run:
-  - `mvn spring-boot:run`
-
-If the project uses a different runtime entry point (e.g., Gradle, Quarkus, Micronaut), run it using the corresponding command defined in the project.
+export SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/expense_tracker
+export SPRING_DATASOURCE_USERNAME=expense_user
+export SPRING_DATASOURCE_PASSWORD=expense_password
 
 ---
 
-## How to Run Tests (with Testcontainers)
+## How to Run
 
-Tests use Testcontainers to provision a MySQL container automatically at test time. This requires Docker to be installed and running.
+mvn spring-boot:run
 
-Run tests:
+---
 
-- `mvn test`
+## How to Run Tests
+
+Tests use Testcontainers to provision an ephemeral MySQL instance automatically.
+
+mvn test
 
 Notes:
-- Ensure Docker daemon is running before executing tests.
-- The first run may take longer while Docker images are pulled.
-- If your environment restricts Docker (CI runners, corporate laptops), configure Docker access accordingly.
+- Docker must be installed and running to execute tests.
+- The first run may take longer while pulling Docker images.
 
 ---
 
-## Implemented User Story #1: Edit Expense
+## API Endpoints
 
-### Endpoints
+- Create expense: `POST /api/expenses`
+- List expenses: `GET /api/expenses`
+- Update expense (Edit): `PUT /api/expenses/{id}`
+- Delete expense: `DELETE /api/expenses/{id}`
+- Monthly total: `GET /api/expenses/monthly-total?year=YYYY&month=M`
 
-User Story #1 implements editing an existing expense.
+---
 
-- Update/Edit an Expense  
-  - Method: `PUT` (or `PATCH`, depending on implementation)  
-  - Path: `/expenses/{id}`  
-  - Description: Updates fields of an existing expense by its identifier.
+## Example cURL
 
-If your project exposes a versioned API (e.g., `/api/v1`), the endpoint will be:
+### Create an Expense
 
-- `PUT /api/v1/expenses/{id}` (or `PATCH /api/v1/expenses/{id}`)
+curl -X POST "http://localhost:8080/api/expenses" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 12.50,
+    "description": "Lunch",
+    "date": "2026-08-01"
+  }'
 
-### Expected Request/Response (High Level)
+### Update an Expense
 
-- Request typically includes one or more editable fields such as:
-  - amount
-  - description
-  - date
-  - category (if applicable)
-
-- Response typically returns the updated expense representation.
-
-Refer to the API controller or OpenAPI/Swagger documentation (if included) for the exact schema and validations.
+curl -X PUT "http://localhost:8080/api/expenses/1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 15.75,
+    "description": "Lunch (updated)",
+    "date": "2026-08-01"
+  }'
